@@ -1,10 +1,13 @@
 import javafx.scene.control.skin.TextAreaSkin
 import scalafx.application.JFXApp
 import scalafx.Includes._
+import scalafx.beans.property.StringProperty
+import scalafx.geometry.Insets
 import scalafx.scene.Scene
-import scalafx.scene.control.{Alert, TextArea}
+import scalafx.scene.control.{Alert, Label, TextArea}
 import scalafx.scene.control.Alert.AlertType
 import scalafx.scene.input.MouseEvent
+import scalafx.scene.layout.BorderPane
 
 object TestText extends JFXApp {
   // Catch unhandled exceptions on FX Application thread
@@ -21,6 +24,14 @@ object TestText extends JFXApp {
         }.showAndWait()
       }
     )
+
+  private val statusText: StringProperty = StringProperty("")
+
+  private val statusLabel = new Label {
+    maxWidth = Double.MaxValue
+    padding = Insets(0, 10, 10, 10)
+    text <== statusText
+  }
 
   private val textArea: TextArea = new TextArea {
     editable = true
@@ -41,6 +52,26 @@ object TestText extends JFXApp {
       val wordLength = textClickedPrefix.length + textClickedSuffix.length
 
       (wordStart, wordLength)
+    }
+
+    onMouseExited = { _ =>
+      statusText.value = ""
+    }
+
+    onMouseMoved = { event =>
+      val index = getCharIndex(event)
+
+      if (index == text().length) {
+        statusText.value = ""
+      } else {
+        val (wordStart, wordLength) = getWord(text(), index)
+
+        if (wordLength <= 0) {
+          statusText.value = ""
+        } else {
+          statusText.value = text().slice(wordStart, wordStart + wordLength)
+        }
+      }
     }
 
     onMouseClicked = { event =>
@@ -67,8 +98,13 @@ object TestText extends JFXApp {
     }
   }
 
+  private val borderPane = new BorderPane {
+    center = textArea
+    bottom = statusLabel
+  }
+
   stage = new JFXApp.PrimaryStage {
     title = "Test Text Area"
-    scene = new Scene(textArea)
+    scene = new Scene(borderPane)
   }
 }
