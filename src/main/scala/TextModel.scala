@@ -1,6 +1,8 @@
 sealed trait TextModel {
   def text: String
 
+  def untrimmedText: String
+
   val children: ElaborationList = ElaborationList()
 
   def addChild(child: TextNode): Unit = {
@@ -30,18 +32,21 @@ sealed trait TextModel {
 
 case class TextRoot(title: String) extends TextModel {
   override def text: String = title
+  override def untrimmedText: String = title
 }
 
-case class TextNode(text: String, parent: TextModel) extends TextModel {
+case class TextNode(text: String, parent: TextModel, beforeSpacing: String = "", afterSpacing: String = "") extends TextModel {
+  override def untrimmedText: String = beforeSpacing ++ text ++ afterSpacing
+
   var elaborationNode: ElaborationNode = _
 
   def elaborate(elaboration: String, from: Int, to: Int): (TextNode, TextNode, TextNode) = {
     val (before, elaboratedWithAfter) = text.splitAt(from)
     val (elaborated, after) = elaboratedWithAfter.splitAt(to - from)
 
-    val newNode = TextNode(elaborated.trim, parent)
-    val beforeNode = TextNode(before.trim, parent)
-    val afterNode = TextNode(after.trim, parent)
+    val newNode = TextNode.fromUntrimmed(elaborated, parent)
+    val beforeNode = TextNode.fromUntrimmed(before, parent)
+    val afterNode = TextNode.fromUntrimmed(after, parent)
 
     val newElaborationNode = elaborationNode.replace(newNode)
     val beforeElaborationNode = newElaborationNode.addBefore(beforeNode)
@@ -54,6 +59,16 @@ case class TextNode(text: String, parent: TextModel) extends TextModel {
     newNode.elaborate(elaboration)
 
     (beforeNode, newNode, afterNode)
+  }
+}
+
+object TextNode {
+  def fromUntrimmed(text: String, parent: TextModel): TextNode = {
+    val trimmedText = text.trim
+    val beforeSpacing = text.takeWhile(_ != trimmedText.head)
+    val afterSpacing = text.reverse.takeWhile(_ != trimmedText.last).reverse
+
+    TextNode(trimmedText, parent, beforeSpacing, afterSpacing)
   }
 }
 

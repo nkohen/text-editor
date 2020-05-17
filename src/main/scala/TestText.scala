@@ -27,6 +27,8 @@ object TestText extends JFXApp {
 
   private val statusText: StringProperty = StringProperty("")
 
+  private val elaborationState = ElaborationState(ElaborationList(TextModel.example))
+
   private val statusLabel = new Label {
     maxWidth = Double.MaxValue
     padding = Insets(0, 10, 10, 10)
@@ -37,7 +39,7 @@ object TestText extends JFXApp {
     editable = false
     wrapText = true
     promptText = "Type text here and ctrl+click on a word to duplicate it!"
-    text = TextModel.example.toString
+    text <== elaborationState.text
 
     def getCharIndex(event: MouseEvent): Int = {
       val clickX = event.sceneX
@@ -78,22 +80,14 @@ object TestText extends JFXApp {
     onMouseClicked = { event =>
       if (event.controlDown) {
         val index = getCharIndex(event)
-        val (wordStart, wordLength) = getWord(text(), index)
-
-        if (wordLength > 0) {
-          val (textBefore, textWithAndAfter) = text().splitAt(wordStart)
-          val (textClicked, textAfter) = textWithAndAfter.splitAt(wordLength)
-
-          text = textBefore ++ s"($textClicked, $textClicked)" ++ textAfter
-          this.positionCaret(text().length - textAfter.length)
-        }
+        elaborationState.expand(index)
       } else if (event.clickCount == 2) {
         val index = getCharIndex(event)
-        val (wordStart, wordLength) = getWord(text(), index)
+        val (nodeStart, nodeLength) = elaborationState.select(index)
 
-        if (wordLength > 0) {
-          this.positionCaret(wordStart)
-          this.extendSelection(wordStart + wordLength + 4)
+        if (nodeLength > 0) {
+          this.positionCaret(nodeStart)
+          this.extendSelection(nodeStart + nodeLength)
         }
       }
     }

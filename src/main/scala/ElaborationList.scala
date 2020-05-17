@@ -1,8 +1,10 @@
-import scala.annotation.tailrec
+import scalafx.beans.property.StringProperty
 
-class ElaborationList {
+class ElaborationList extends IterableOnce[ElaborationNode] {
   val beforeHead: ElaborationNode = ElaborationNode(TextModel.empty)
   val afterLast: ElaborationNode = beforeHead.addAfter(TextModel.empty)
+
+  override def iterator: Iterator[ElaborationNode] = ElaborationListIterator(beforeHead, afterLast)
 
   var length: Int = 0
 
@@ -26,22 +28,18 @@ class ElaborationList {
 
   def last: ElaborationNode = lastOption.get
 
+  def getNode(index: Int): ElaborationNode = {
+    iterator.drop(index).next()
+  }
+
   def add(index: Int, text: TextModel): ElaborationNode = {
     require(index >= 0 && index <= length, s"Index $index was out of bounds for list of length $length")
     
     if (index == length) {
       add(text)
     } else {
-      @tailrec
-      def findNth(node: ElaborationNode, hopsLeft: Int): ElaborationNode = {
-        if (hopsLeft <= 0) {
-          node
-        } else {
-          findNth(node.next.get, hopsLeft - 1)
-        }
-      }
-
-      val newNode = findNth(beforeHead, index).addAfter(text)
+      val nodeAfter = getNode(index)
+      val newNode = nodeAfter.addBefore(text)
       length += 1
       
       newNode
@@ -58,31 +56,38 @@ class ElaborationList {
     texts.map(add).toVector
   }
 
+  def addAllAfterNode(nodeBefore: ElaborationNode, subElaboration: ElaborationList): Unit = {
+    val nodeAfter = nodeBefore.next.get
+
+    val subHead = subElaboration.head
+    val subLast = subElaboration.last
+
+    nodeBefore.next = Some(subHead)
+    subHead.prev = Some(nodeBefore)
+
+    nodeAfter.prev = Some(subLast)
+    subLast.next = Some(nodeAfter)
+
+    length += subElaboration.length
+  }
+
+  def remove(node: ElaborationNode): Unit = {
+    length -= 1
+    node.remove()
+  }
+
+  def remove(index: Int): ElaborationNode = {
+    val node = getNode(index)
+    remove(node)
+    node
+  }
+
   def isEmpty: Boolean = {
     length == 0
   }
 
   override def toString: String = {
-    if (isEmpty) {
-      "Elaboration()"
-    } else {
-      val builder = new StringBuilder(s"Elaboration(${head.text}")
-
-      @tailrec
-      def loop(node: ElaborationNode): Unit = {
-        if (node == afterLast) {
-          builder.append(")")
-        } else {
-          builder.append(", ")
-          builder.append(node.text)
-          loop(node.next.get)
-        }
-      }
-
-      loop(head.next.get)
-
-      builder.result()
-    }
+    s"Elaboration(${iterator.map(_.text).mkString(", ")})"
   }
 }
 
@@ -92,6 +97,21 @@ object ElaborationList {
     val _ = list.addAll(texts)
 
     list
+  }
+}
+
+case class ElaborationListIterator(private var curr: ElaborationNode, afterLast: ElaborationNode) extends Iterator[ElaborationNode] {
+  override def hasNext: Boolean = {
+    !curr.next.contains(afterLast)
+  }
+
+  override def next(): ElaborationNode = {
+    if (hasNext) {
+      curr = curr.next.get
+      curr
+    } else {
+      throw new IllegalStateException("Cannot call next() when hasNext is false.")
+    }
   }
 }
 
@@ -120,7 +140,63 @@ case class ElaborationNode(text: TextModel, var prev: Option[ElaborationNode] = 
     newNode
   }
 
+  def remove(): ElaborationNode = {
+    prev.foreach(_.next = next)
+    next.foreach(_.prev = prev)
+
+    this
+  }
+
   override def toString: String = {
     s"ElaborationNode($text)"
+  }
+}
+
+case class ElaborationState(list: ElaborationList) {
+  val text: StringProperty = StringProperty("")
+
+  def computeCurrentText: String = {
+    val builder = new StringBuilder()
+
+    list.iterator.foreach(node => builder.append(node.text.untrimmedText))
+
+    val result = builder.result()
+
+    text.value = result
+
+    result
+  }
+
+  val _ = computeCurrentText
+
+  def getNodeAtCharIndex(index: Int): (ElaborationNode, Int) = {
+    var accum: Int = 0
+    val nodeToExpand = list.iterator.dropWhile { node =>
+      val nodeLen = node.text.untrimmedText.length
+      if (index <= accum + nodeLen) {
+        false
+      } else {
+        accum += nodeLen
+        true
+      }
+    }.next()
+
+    (nodeToExpand, index - accum)
+  }
+
+  def expand(index: Int): Unit = {
+    val (nodeToExpand, _) = getNodeAtCharIndex(index)
+
+    list.addAllAfterNode(nodeToExpand, nodeToExpand.text.children)
+    list.remove(nodeToExpand)
+
+    computeCurrentText
+  }
+
+  def select(index: Int): (Int, Int) = {
+    val (nodeSelected, indexDepthInNode) = getNodeAtCharIndex(index)
+    val nodeStart = index - indexDepthInNode
+
+    (nodeStart, nodeSelected.text.untrimmedText.length)
   }
 }
