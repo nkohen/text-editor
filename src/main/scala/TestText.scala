@@ -4,7 +4,7 @@ import scalafx.Includes._
 import scalafx.scene.Scene
 import scalafx.scene.control.{Alert, TextArea}
 import scalafx.scene.control.Alert.AlertType
-import scalafx.scene.input.MouseEvent
+import scalafx.scene.input.{KeyCode, MouseEvent}
 
 object TestText extends JFXApp {
   // Catch unhandled exceptions on FX Application thread
@@ -28,27 +28,24 @@ object TestText extends JFXApp {
     promptText = "Type text here and ctrl+click on a word to duplicate it!"
 
     onMouseClicked = { event =>
-      event.eventType match {
-        case MouseEvent.MouseClicked  if event.controlDown =>
-          val typedEvent: MouseEvent = event
-          val clickX = typedEvent.sceneX
-          val clickY = typedEvent.sceneY
-          val index = skin().asInstanceOf[TextAreaSkin].getIndex(clickX, clickY).getCharIndex
+      if (event.controlDown) {
+        val clickX = event.sceneX
+        val clickY = event.sceneY
+        val index = skin().asInstanceOf[TextAreaSkin].getIndex(clickX, clickY).getCharIndex
 
-          val textClickedSuffix = text().drop(index).takeWhile(_.isLetterOrDigit)
-          val textClickedPrefix = text().take(index).reverse.takeWhile(_.isLetterOrDigit).reverse
+        val textClickedSuffix = text().drop(index).takeWhile(_.isLetterOrDigit)
+        val textClickedPrefix = text().take(index).reverse.takeWhile(_.isLetterOrDigit).reverse
 
-          val wordStart = index - textClickedPrefix.length
-          val wordLength = textClickedPrefix.length + textClickedSuffix.length
+        val wordStart = index - textClickedPrefix.length
+        val wordLength = textClickedPrefix.length + textClickedSuffix.length
 
-          if (wordLength > 0) {
-            val (textBefore, textWithAndAfter) = text().splitAt(wordStart)
-            val (textClicked, textAfter) = textWithAndAfter.splitAt(wordLength)
+        if (wordLength > 0) {
+          val (textBefore, textWithAndAfter) = text().splitAt(wordStart)
+          val (textClicked, textAfter) = textWithAndAfter.splitAt(wordLength)
 
-            text = textBefore ++ s"($textClicked, $textClicked)" ++ textAfter
-            this.positionCaret(text().length - textAfter.length)
-          }
-        case _ => ()
+          text = textBefore ++ s"($textClicked, $textClicked)" ++ textAfter
+          this.positionCaret(text().length - textAfter.length)
+        }
       }
     }
   }
