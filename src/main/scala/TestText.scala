@@ -27,7 +27,7 @@ object TestText extends JFXApp {
 
   private val statusText: StringProperty = StringProperty("")
 
-  private val elaborationState = ElaborationState(ElaborationList(TextModel.example))
+  private val elaborationState = ElaborationState(TextModel.example)
 
   private val statusLabel = new Label {
     maxWidth = Double.MaxValue

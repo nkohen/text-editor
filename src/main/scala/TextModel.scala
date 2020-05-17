@@ -1,18 +1,26 @@
+import scala.collection.mutable
+
 sealed trait TextModel {
   def text: String
 
   def untrimmedText: String
 
-  val children: ElaborationList = ElaborationList()
+  var children: mutable.ArrayBuffer[TextNode] = mutable.ArrayBuffer.empty
 
   def addChild(child: TextNode): Unit = {
-    child.elaborationNode = children.add(child)
+    children.append(child)
   }
 
   def addChildren(children: TextNode*): Unit = {
     children.foreach { child =>
       addChild(child)
     }
+  }
+
+  def replaceChild(child: TextNode, replacements: Vector[TextNode]): Unit = {
+    val index = children.indexOf(child)
+    children.remove(index)
+    children.insertAll(index, replacements)
   }
 
   def elaborate(elaboration: String): TextNode = {
@@ -38,8 +46,6 @@ case class TextRoot(title: String) extends TextModel {
 case class TextNode(text: String, parent: TextModel, beforeSpacing: String = "", afterSpacing: String = "") extends TextModel {
   override def untrimmedText: String = beforeSpacing ++ text ++ afterSpacing
 
-  var elaborationNode: ElaborationNode = _
-
   def elaborate(elaboration: String, from: Int, to: Int): (TextNode, TextNode, TextNode) = {
     val (before, elaboratedWithAfter) = text.splitAt(from)
     val (elaborated, after) = elaboratedWithAfter.splitAt(to - from)
@@ -48,13 +54,7 @@ case class TextNode(text: String, parent: TextModel, beforeSpacing: String = "",
     val beforeNode = TextNode.fromUntrimmed(before, parent)
     val afterNode = TextNode.fromUntrimmed(after, parent)
 
-    val newElaborationNode = elaborationNode.replace(newNode)
-    val beforeElaborationNode = newElaborationNode.addBefore(beforeNode)
-    val afterElaborationNode = newElaborationNode.addAfter(afterNode)
-
-    newNode.elaborationNode = newElaborationNode
-    beforeNode.elaborationNode = beforeElaborationNode
-    afterNode.elaborationNode = afterElaborationNode
+    parent.replaceChild(this, Vector(beforeNode, newNode, afterNode))
 
     newNode.elaborate(elaboration)
 
