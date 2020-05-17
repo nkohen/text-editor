@@ -34,9 +34,10 @@ object TestText extends JFXApp {
   }
 
   private val textArea: TextArea = new TextArea {
-    editable = true
+    editable = false
     wrapText = true
     promptText = "Type text here and ctrl+click on a word to duplicate it!"
+    text = TextModel.example.toString
 
     def getCharIndex(event: MouseEvent): Int = {
       val clickX = event.sceneX
