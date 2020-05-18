@@ -4,7 +4,7 @@ import scalafx.Includes._
 import scalafx.beans.property.StringProperty
 import scalafx.geometry.Insets
 import scalafx.scene.Scene
-import scalafx.scene.control.{Alert, Label, TextArea}
+import scalafx.scene.control.{Alert, Label, Menu, MenuBar, MenuItem, TextArea}
 import scalafx.scene.control.Alert.AlertType
 import scalafx.scene.input.MouseEvent
 import scalafx.scene.layout.BorderPane
@@ -35,6 +35,23 @@ object TestText extends JFXApp {
     text <== statusText
   }
 
+  private val fileMenu: Menu = new Menu {
+    text = "File"
+
+    private val saveItem = new MenuItem {
+      text = "Save"
+      onAction = { _ =>
+        println("Save button pressed")
+      }
+    }
+
+    items = Seq(saveItem)
+  }
+
+  private val menuBar = new MenuBar {
+    menus = Seq(fileMenu)
+  }
+
   private val textArea: TextArea = new TextArea {
     editable = false
     wrapText = true
@@ -42,9 +59,7 @@ object TestText extends JFXApp {
     text <== elaborationState.text
 
     def getCharIndex(event: MouseEvent): Int = {
-      val clickX = event.sceneX
-      val clickY = event.sceneY
-      getCharIndex(clickX, clickY)
+      getCharIndex(event.x, event.y)
     }
 
     def getCharIndex(clickX: Double, clickY: Double): Int = {
@@ -93,6 +108,7 @@ object TestText extends JFXApp {
   }
 
   private val borderPane = new BorderPane {
+    top = menuBar
     center = textArea
     bottom = statusLabel
   }
