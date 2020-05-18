@@ -84,6 +84,12 @@ case class TextRoot(title: String) extends TextModel {
   }
 }
 
+object TextRoot {
+  def fromSaveFormat(saved: String): TextRoot = {
+    ???
+  }
+}
+
 case class TextNode(text: String, parent: TextModel, beforeSpacing: String = "", afterSpacing: String = "") extends TextModel {
   override def generation: Int = parent.generation + 1
 
@@ -116,8 +122,6 @@ object TextNode {
 }
 
 object TextModel {
-  val empty: TextModel = TextRoot("")
-
   val example: TextModel = {
     val root = TextRoot("Rabbit")
     val child = root.elaborate("A Furry Creature")

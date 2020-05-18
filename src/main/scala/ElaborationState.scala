@@ -107,6 +107,12 @@ case class ElaborationState(buffer: mutable.ArrayBuffer[TextModel]) {
   def getRoot: TextRoot = {
     buffer.head.getRoot
   }
+
+  def reset(root: TextRoot): Unit = {
+    buffer.clearAndShrink()
+    buffer.addOne(root)
+    computeCurrentText()
+  }
 }
 
 object ElaborationState {

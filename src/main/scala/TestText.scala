@@ -50,6 +50,21 @@ object TestText extends JFXApp {
       text = "Open"
       onAction = { _ =>
         println("Open button pressed")
+
+        val fileChooser = new FileChooser {
+          title = "Open File"
+        }
+
+        val fileOrNull = fileChooser.showOpenDialog(null.asInstanceOf[Window])
+
+        if (fileOrNull != null) {
+          val source = scala.io.Source.fromFile(fileOrNull)
+          val savedStr = source.mkString
+          source.close()
+
+          elaborationState.reset(TextRoot.fromSaveFormat(savedStr))
+          statusText.value = s"Opened ${fileOrNull.getCanonicalPath}"
+        }
       }
     }
 
@@ -97,17 +112,15 @@ object TestText extends JFXApp {
       skin().asInstanceOf[TextAreaSkin].getIndex(clickX, clickY).getCharIndex
     }
 
-    onMouseExited = { _ =>
-      statusText.value = ""
-    }
-
     onMouseMoved = { event =>
       val index = getCharIndex(event)
 
-      if (index == text().length) {
-        statusText.value = ""
-      } else {
-        statusText.value = elaborationState.selectParent(index)
+      if (index != text().length) {
+        val parent = elaborationState.selectParent(index)
+
+        if (!parent.isEmpty) {
+          statusText.value = parent
+        }
       }
     }
 
