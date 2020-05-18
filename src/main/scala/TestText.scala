@@ -44,17 +44,11 @@ object TestText extends JFXApp {
     def getCharIndex(event: MouseEvent): Int = {
       val clickX = event.sceneX
       val clickY = event.sceneY
-      skin().asInstanceOf[TextAreaSkin].getIndex(clickX, clickY).getCharIndex
+      getCharIndex(clickX, clickY)
     }
 
-    def getWord(text: String, index: Int): (Int, Int) = {
-      val textClickedSuffix = text.drop(index).takeWhile(_.isLetterOrDigit)
-      val textClickedPrefix = text.take(index).reverse.takeWhile(_.isLetterOrDigit).reverse
-
-      val wordStart = index - textClickedPrefix.length
-      val wordLength = textClickedPrefix.length + textClickedSuffix.length
-
-      (wordStart, wordLength)
+    def getCharIndex(clickX: Double, clickY: Double): Int = {
+      skin().asInstanceOf[TextAreaSkin].getIndex(clickX, clickY).getCharIndex
     }
 
     onMouseExited = { _ =>
@@ -67,28 +61,28 @@ object TestText extends JFXApp {
       if (index == text().length) {
         statusText.value = ""
       } else {
-        val (wordStart, wordLength) = getWord(text(), index)
-
-        if (wordLength <= 0) {
-          statusText.value = ""
-        } else {
-          statusText.value = text().slice(wordStart, wordStart + wordLength)
-        }
+        statusText.value = elaborationState.selectParent(index)
       }
     }
 
     onMouseClicked = { event =>
+      val index = getCharIndex(event)
       if (event.controlDown) {
-        val index = getCharIndex(event)
         if (event.shiftDown) {
           elaborationState.compress(index)
         }
         else {
           elaborationState.expand(index)
         }
-      } else if (event.clickCount == 2) {
-        val index = getCharIndex(event)
-        val (nodeStart, nodeLength) = elaborationState.select(index)
+      } else {
+        val (nodeStart, nodeLength) =
+          if (event.clickCount == 2) {
+            elaborationState.select(index)
+          } else if (event.clickCount == 3) {
+            elaborationState.selectParentalRelatives(index)
+          } else {
+            (caretPosition(), 0)
+          }
 
         if (nodeLength > 0) {
           this.positionCaret(nodeStart)

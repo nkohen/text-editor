@@ -72,6 +72,37 @@ case class ElaborationState(buffer: mutable.ArrayBuffer[TextModel]) {
 
     (nodeStartIndex, nodeSelected.untrimmedText.length)
   }
+
+  def selectParent(index: Int): String = {
+    getNodeAtCharIndex(index) match {
+      case (TextRoot(_), _, _) => ""
+      case (TextNode(_, parent, _, _), _, _) => parent.text
+    }
+  }
+
+  def selectParentalRelatives(index: Int): (Int, Int) = {
+    val (nodeSelected, _, _) = getNodeAtCharIndex(index)
+    nodeSelected match {
+      case TextRoot(_) => (0, text().length)
+      case TextNode(_, parent, _, _) =>
+        var startIndex = 0
+        val firstRelative = buffer.toVector.find { text =>
+          startIndex += text.untrimmedText.length
+          text.isAncestor(parent)
+        }.get
+        startIndex -= firstRelative.untrimmedText.length
+
+        var endIndex = 0
+        val lastRelative = buffer.reverseIterator.toVector.find { text =>
+          endIndex += text.untrimmedText.length
+          text.isAncestor(parent)
+        }.get
+        endIndex -= lastRelative.untrimmedText.length
+        endIndex = text().length - endIndex
+
+        (startIndex, endIndex - startIndex)
+    }
+  }
 }
 
 object ElaborationState {
