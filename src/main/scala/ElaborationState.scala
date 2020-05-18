@@ -51,6 +51,21 @@ case class ElaborationState(buffer: mutable.ArrayBuffer[TextModel]) {
     computeCurrentText()
   }
 
+  def compress(index: Int): Unit = {
+    val (nodeToCompressFrom, _, _) = getNodeAtCharIndex(index)
+    val parent = nodeToCompressFrom match {
+      case TextRoot(title) => throw new IllegalArgumentException(s"Cannot compress from root: $title")
+      case TextNode(_, parent, _, _) => parent
+    }
+    val (_, startIndex) = buffer.toVector.zipWithIndex.find(_._1.isAncestor(parent)).get
+    val (_, endIndex) = buffer.toVector.zipWithIndex.findLast(_._1.isAncestor(parent)).get
+
+    buffer.remove(startIndex, endIndex - startIndex + 1)
+    buffer.insert(startIndex, parent)
+
+    computeCurrentText()
+  }
+
   def select(index: Int): (Int, Int) = {
     val (nodeSelected, _, indexDepthInNode) = getNodeAtCharIndex(index)
     val nodeStartIndex = index - indexDepthInNode

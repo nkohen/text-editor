@@ -1,7 +1,10 @@
+import scala.annotation.tailrec
 import scala.collection.mutable
 
 sealed trait TextModel {
   def text: String
+
+  def generation: Int
 
   def untrimmedText: String
 
@@ -30,6 +33,21 @@ sealed trait TextModel {
     child
   }
 
+  @tailrec
+  final def isAncestor(text: TextModel): Boolean = {
+    this match {
+      case _: TextRoot => false
+      case node: TextNode =>
+        if (node.parent == text) {
+          true
+        } else if (generation <= text.generation) {
+          false
+        } else {
+          node.parent.isAncestor(text)
+        }
+    }
+  }
+
   override def toString: String = {
     this match {
       case root: TextRoot => s"Root($text, ${root.children})"
@@ -41,9 +59,12 @@ sealed trait TextModel {
 case class TextRoot(title: String) extends TextModel {
   override def text: String = title
   override def untrimmedText: String = title
+  override def generation: Int = 0
 }
 
 case class TextNode(text: String, parent: TextModel, beforeSpacing: String = "", afterSpacing: String = "") extends TextModel {
+  override def generation: Int = parent.generation + 1
+
   override def untrimmedText: String = beforeSpacing ++ text ++ afterSpacing
 
   def elaborate(elaboration: String, from: Int, to: Int): (TextNode, TextNode, TextNode) = {

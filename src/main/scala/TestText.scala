@@ -80,7 +80,12 @@ object TestText extends JFXApp {
     onMouseClicked = { event =>
       if (event.controlDown) {
         val index = getCharIndex(event)
-        elaborationState.expand(index)
+        if (event.shiftDown) {
+          elaborationState.compress(index)
+        }
+        else {
+          elaborationState.expand(index)
+        }
       } else if (event.clickCount == 2) {
         val index = getCharIndex(event)
         val (nodeStart, nodeLength) = elaborationState.select(index)
