@@ -103,6 +103,10 @@ case class ElaborationState(buffer: mutable.ArrayBuffer[TextModel]) {
         (startIndex, endIndex - startIndex)
     }
   }
+
+  def getRoot: TextRoot = {
+    buffer.head.getRoot
+  }
 }
 
 object ElaborationState {

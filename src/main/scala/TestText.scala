@@ -8,6 +8,7 @@ import scalafx.scene.control.{Alert, Label, Menu, MenuBar, MenuItem, TextArea}
 import scalafx.scene.control.Alert.AlertType
 import scalafx.scene.input.MouseEvent
 import scalafx.scene.layout.BorderPane
+import scalafx.stage.{FileChooser, Window}
 
 object TestText extends JFXApp {
   // Catch unhandled exceptions on FX Application thread
@@ -38,14 +39,44 @@ object TestText extends JFXApp {
   private val fileMenu: Menu = new Menu {
     text = "File"
 
-    private val saveItem = new MenuItem {
-      text = "Save"
+    private val newItem = new MenuItem {
+      text = "New"
       onAction = { _ =>
-        println("Save button pressed")
+        println("New button pressed")
       }
     }
 
-    items = Seq(saveItem)
+    private val openItem = new MenuItem {
+      text = "Open"
+      onAction = { _ =>
+        println("Open button pressed")
+      }
+    }
+
+    private val saveItem = new MenuItem {
+      text = "Save"
+      onAction = { _ =>
+        val fileChooser = new FileChooser {
+          title = "Save File"
+        }
+
+        val fileOrNull = fileChooser.showSaveDialog(null.asInstanceOf[Window])
+
+        if (fileOrNull != null) {
+          elaborationState.getRoot.save(fileOrNull)
+          statusText.value = "File saved!"
+        }
+      }
+    }
+
+    private val exitItem = new MenuItem {
+      text = "Exit"
+      onAction = { _ =>
+        sys.exit()
+      }
+    }
+
+    items = Seq(newItem, openItem, saveItem, exitItem)
   }
 
   private val menuBar = new MenuBar {

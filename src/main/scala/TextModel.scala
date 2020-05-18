@@ -1,3 +1,5 @@
+import java.io.{File, PrintWriter}
+
 import scala.annotation.tailrec
 import scala.collection.mutable
 
@@ -34,6 +36,14 @@ sealed trait TextModel {
   }
 
   @tailrec
+  final def getRoot: TextRoot = {
+    this match {
+      case root: TextRoot => root
+      case TextNode(_, parent, _, _) => parent.getRoot
+    }
+  }
+
+  @tailrec
   final def isAncestor(text: TextModel): Boolean = {
     this match {
       case _: TextRoot => false
@@ -48,6 +58,14 @@ sealed trait TextModel {
     }
   }
 
+  def save(file: File): Unit = {
+    val writer = new PrintWriter(file)
+
+    writer.write(getRoot.toSaveFormat)
+
+    writer.close()
+  }
+
   override def toString: String = {
     this match {
       case root: TextRoot => s"Root($text, ${root.children})"
@@ -60,6 +78,10 @@ case class TextRoot(title: String) extends TextModel {
   override def text: String = title
   override def untrimmedText: String = title
   override def generation: Int = 0
+
+  def toSaveFormat: String = {
+    ???
+  }
 }
 
 case class TextNode(text: String, parent: TextModel, beforeSpacing: String = "", afterSpacing: String = "") extends TextModel {
