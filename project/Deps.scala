@@ -5,6 +5,7 @@ object Deps {
   object V {
     val scalaFxV = "14-R19"
     val javaFxV = "14.0.1"
+    val xmlV = "1.2.0"
   }
 
   object Compile {
@@ -30,7 +31,9 @@ object Deps {
       javaFxMedia,
       javaFxSwing,
       javaFxWeb)
+
+    val xml = "org.scala-lang.modules" %% "scala-xml" % V.xmlV withSources () withJavadoc ()
   }
 
-  val gui = List(Compile.scalaFx) ++ Compile.javaFxDeps
+  val gui = List(Compile.xml, Compile.scalaFx) ++ Compile.javaFxDeps
 }

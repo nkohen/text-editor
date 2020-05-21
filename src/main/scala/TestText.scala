@@ -58,11 +58,7 @@ object TestText extends JFXApp {
         val fileOrNull = fileChooser.showOpenDialog(null.asInstanceOf[Window])
 
         if (fileOrNull != null) {
-          val source = scala.io.Source.fromFile(fileOrNull)
-          val savedStr = source.mkString
-          source.close()
-
-          elaborationState.reset(TextRoot.fromSaveFormat(savedStr))
+          elaborationState.reset(TextRoot.fromFile(fileOrNull))
           statusText.value = s"Opened ${fileOrNull.getCanonicalPath}"
         }
       }

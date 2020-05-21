@@ -1,4 +1,4 @@
-import java.io.{File, PrintWriter}
+import java.io.File
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -59,11 +59,7 @@ sealed trait TextModel {
   }
 
   def save(file: File): Unit = {
-    val writer = new PrintWriter(file)
-
-    writer.write(getRoot.toSaveFormat)
-
-    writer.close()
+    scala.xml.XML.save(file.getCanonicalPath, getRoot.toSaveFormat)
   }
 
   override def toString: String = {
@@ -79,14 +75,70 @@ case class TextRoot(title: String) extends TextModel {
   override def untrimmedText: String = title
   override def generation: Int = 0
 
-  def toSaveFormat: String = {
-    ???
+  def toSaveFormat: scala.xml.Elem = {
+    import scala.xml._
+
+    def toOutline(text: TextModel): Elem = {
+      <outline text={text.untrimmedText}>
+        {text.children.map(toOutline)}
+      </outline>
+    }
+
+    <opml version="2.0">
+      <head>
+        <title/>
+        <flavor>Text-Editor</flavor>
+        <source>github.com/nkohen/text-editor</source>
+        <ownerName>Nadav Kohen</ownerName>
+        <ownerEmail>nadavk25@gmail.com</ownerEmail>
+      </head>
+      <body>
+        {toOutline(this)}
+      </body>
+    </opml>
   }
 }
 
 object TextRoot {
-  def fromSaveFormat(saved: String): TextRoot = {
-    ???
+  def fromFile(file: File): TextRoot = {
+    fromSaveFormat(scala.xml.XML.loadFile(file))
+  }
+
+  def fromSaveFormat(saved: scala.xml.Node): TextRoot = {
+    import scala.xml._
+
+    def fromOutline(outline: Node, parent: TextModel): Option[TextNode] = {
+      for {
+        textNodes <- outline.attribute("text")
+        text <- textNodes.head match {
+          case text: Text => Some(text.text)
+          case _ => None
+        }
+      } yield {
+        val textNode = TextNode.fromUntrimmed(text, parent)
+
+        outline.child.foreach { childNode =>
+          val childOpt = fromOutline(childNode, textNode)
+          childOpt.foreach { child =>
+            textNode.addChild(child)
+          }
+        }
+
+        textNode
+      }
+    }
+
+    val topOutline = (saved \ "body" \ "outline").head
+    val root = TextRoot(topOutline \@ "text")
+
+    topOutline.child.foreach { childNode =>
+      val childOpt = fromOutline(childNode, root)
+      childOpt.foreach { child =>
+        root.addChild(child)
+      }
+    }
+
+    root
   }
 }
 
