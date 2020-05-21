@@ -39,7 +39,7 @@ sealed trait TextModel {
   final def getRoot: TextRoot = {
     this match {
       case root: TextRoot => root
-      case TextNode(_, parent, _, _) => parent.getRoot
+      case TextNode(_, parent, _, _, _) => parent.getRoot
     }
   }
 
@@ -70,7 +70,7 @@ sealed trait TextModel {
   }
 }
 
-case class TextRoot(title: String) extends TextModel {
+case class TextRoot(var title: String) extends TextModel {
   override def text: String = title
   override def untrimmedText: String = title
   override def generation: Int = 0
@@ -142,10 +142,17 @@ object TextRoot {
   }
 }
 
-case class TextNode(text: String, parent: TextModel, beforeSpacing: String = "", afterSpacing: String = "") extends TextModel {
+case class TextNode(var text: String, parent: TextModel, beforeSpacing: String = "", afterSpacing: String = "", var beingEdited: Boolean = false) extends TextModel {
   override def generation: Int = parent.generation + 1
 
-  override def untrimmedText: String = beforeSpacing ++ text ++ afterSpacing
+  override def untrimmedText: String = {
+    val textWithSpacing = beforeSpacing ++ text ++ afterSpacing
+    if (beingEdited) {
+      s"\n\n${TextNode.editBegin}\n\n$textWithSpacing\n\n${TextNode.editEnd}\n\n"
+    } else {
+      textWithSpacing
+    }
+  }
 
   def elaborate(elaboration: String, from: Int, to: Int): (TextNode, TextNode, TextNode) = {
     val (before, elaboratedWithAfter) = text.splitAt(from)
@@ -171,6 +178,9 @@ object TextNode {
 
     TextNode(trimmedText, parent, beforeSpacing, afterSpacing)
   }
+
+  val editBegin: String = "--- EDIT BEGIN ---"
+  val editEnd: String = "--- EDIT END ---"
 }
 
 object TextModel {

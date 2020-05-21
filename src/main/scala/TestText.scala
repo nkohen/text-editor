@@ -109,27 +109,46 @@ object TestText extends JFXApp {
     }
 
     onMouseMoved = { event =>
-      val index = getCharIndex(event)
+      if (!editable()) {
+        val index = getCharIndex(event)
 
-      if (index != text().length) {
-        val parent = elaborationState.selectParent(index)
+        if (index != text().length) {
+          val parent = elaborationState.selectParent(index)
 
-        if (!parent.isEmpty) {
-          statusText.value = parent
+          if (!parent.isEmpty) {
+            statusText.value = parent
+          }
         }
       }
     }
 
     onMouseClicked = { event =>
+      val currentlyEditable = editable()
       val index = getCharIndex(event)
       if (event.controlDown) {
-        if (event.shiftDown) {
+        if (event.shiftDown && !currentlyEditable) {
           elaborationState.compress(index)
-        }
-        else {
+        } else if (event.altDown && !currentlyEditable) {
           elaborationState.expand(index)
+        } else {
+          val textFunc = { () => text() }
+          val selectFunc = { (start: Int, end: Int) =>
+            this.positionCaret(start)
+            this.extendSelection(end)
+          }
+          if(elaborationState.toggleEditingForNode(index, textFunc, selectFunc)) {
+            if (!currentlyEditable) {
+              text.unbind()
+              statusText.value = "Edit Mode"
+            } else {
+              statusText.value = ""
+              text <== elaborationState.text
+            }
+
+            editable = !editable()
+          }
         }
-      } else {
+      } else if (!currentlyEditable) {
         val (nodeStart, nodeLength) =
           if (event.clickCount == 2) {
             elaborationState.select(index)

@@ -5,6 +5,8 @@ import scala.collection.mutable
 case class ElaborationState(buffer: mutable.ArrayBuffer[TextModel]) {
   val text: StringProperty = StringProperty("")
 
+  var nodeBeingEdited: Option[(TextModel, Int)] = None
+
   def computeCurrentText(): String = {
     val builder = new StringBuilder()
 
@@ -55,7 +57,7 @@ case class ElaborationState(buffer: mutable.ArrayBuffer[TextModel]) {
     val (nodeToCompressFrom, _, _) = getNodeAtCharIndex(index)
     val parent = nodeToCompressFrom match {
       case TextRoot(title) => throw new IllegalArgumentException(s"Cannot compress from root: $title")
-      case TextNode(_, parent, _, _) => parent
+      case TextNode(_, parent, _, _, _) => parent
     }
     val (_, startIndex) = buffer.toVector.zipWithIndex.find(_._1.isAncestor(parent)).get
     val (_, endIndex) = buffer.toVector.zipWithIndex.findLast(_._1.isAncestor(parent)).get
@@ -76,7 +78,7 @@ case class ElaborationState(buffer: mutable.ArrayBuffer[TextModel]) {
   def selectParent(index: Int): String = {
     getNodeAtCharIndex(index) match {
       case (TextRoot(_), _, _) => ""
-      case (TextNode(_, parent, _, _), _, _) => parent.text
+      case (TextNode(_, parent, _, _, _), _, _) => parent.text
     }
   }
 
@@ -84,7 +86,7 @@ case class ElaborationState(buffer: mutable.ArrayBuffer[TextModel]) {
     val (nodeSelected, _, _) = getNodeAtCharIndex(index)
     nodeSelected match {
       case TextRoot(_) => (0, text().length)
-      case TextNode(_, parent, _, _) =>
+      case TextNode(_, parent, _, _, _) =>
         var startIndex = 0
         val firstRelative = buffer.toVector.find { text =>
           startIndex += text.untrimmedText.length
@@ -101,6 +103,76 @@ case class ElaborationState(buffer: mutable.ArrayBuffer[TextModel]) {
         endIndex = text().length - endIndex
 
         (startIndex, endIndex - startIndex)
+    }
+  }
+
+  def toggleEditingForNode(index: Int, currentTextFunc: () => String, selectFunc: (Int, Int) => Unit): Boolean = {
+    nodeBeingEdited match {
+      case Some((node, index)) =>
+        val expectedPreText = buffer.take(index).map(_.untrimmedText).mkString("")
+        val expectedPostText = buffer.drop(index + 1).map(_.untrimmedText).mkString("")
+
+        val currentText = currentTextFunc()
+
+        lazy val err = new RuntimeException("You have edited outside of bounds. Revert illegal changes and try again (illegal change should be highlighted).")
+
+        val relevantText = if (currentText.startsWith(expectedPreText)) {
+          if (currentText.endsWith(expectedPostText)) {
+            currentText.drop(expectedPreText.length).dropRight(expectedPostText.length).trim
+          } else {
+            val beforeEnd = currentText.zipWithIndex.reverseIterator.zip(expectedPostText.reverseIterator).find { case ((a, _), b) => a != b }.get._1._2
+            val backWord = currentText.reverseIterator.drop(currentText.length - beforeEnd - 1).takeWhile(!_.isWhitespace)
+            selectFunc(beforeEnd - backWord.length + 1, beforeEnd + 1)
+            throw err
+          }
+        } else {
+          val start = currentText.zip(expectedPreText).zipWithIndex.find { case ((a, b), _) => a != b }.get._2
+          val word = currentText.drop(start).takeWhile(!_.isWhitespace)
+          selectFunc(start, start + word.length)
+          throw err
+        }
+
+        node match {
+          case node: TextNode =>
+            if (relevantText.startsWith(TextNode.editBegin)) {
+              if (relevantText.endsWith(TextNode.editEnd)) {
+                node.text = relevantText
+                  .drop("--- EDIT BEGIN ---".length)
+                  .dropRight("--- EDIT END ---".length)
+                  .trim()
+
+                node.beingEdited = false
+              } else {
+                val iter = currentText.zipWithIndex.reverse.drop(expectedPostText.length).dropWhile(_._1.isWhitespace)
+                val beforeEnd = iter.head._2
+                val backWord = iter.takeWhile(!_._1.isWhitespace)
+                selectFunc(beforeEnd - backWord.length, beforeEnd + 1)
+                throw err
+              }
+            } else {
+              val iter = currentText.zipWithIndex.drop(expectedPreText.length).dropWhile(_._1.isWhitespace)
+              val start = iter.head._2
+              val word = iter.takeWhile(!_._1.isWhitespace)
+              selectFunc(start, start + word.length)
+              throw err
+            }
+          case root: TextRoot => root.title = relevantText
+        }
+        nodeBeingEdited = None
+        computeCurrentText()
+        true
+      case None =>
+        val (nodeSelected, indexInBuffer, _) = getNodeAtCharIndex(index)
+        nodeSelected match {
+          case root: TextRoot =>
+            nodeBeingEdited = Some((root, indexInBuffer))
+            true
+          case node: TextNode =>
+            node.beingEdited = true
+            nodeBeingEdited = Some((node, indexInBuffer))
+            computeCurrentText()
+            true
+        }
     }
   }
 
