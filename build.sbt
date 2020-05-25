@@ -8,6 +8,8 @@ version := "0.1"
 
 scalaVersion := "2.13.2"
 
+maintainer := "nadavk25@gmail.com"
+
 developers := List(
   Developer(
     "nkohen",
@@ -16,6 +18,8 @@ developers := List(
     url("https://github.com/nkohen")
   )
 )
+
+enablePlugins(JavaAppPackaging)
 
 cancelable in Global := true
 
