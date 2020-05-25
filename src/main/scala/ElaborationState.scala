@@ -1,3 +1,5 @@
+import java.io.File
+
 import scalafx.beans.property.StringProperty
 
 import scala.collection.mutable
@@ -26,7 +28,7 @@ case class ElaborationState(buffer: mutable.ArrayBuffer[TextModel]) {
   def getNodeAtCharIndex(index: Int): (TextModel, Int, Int) = {
     var accum: Int = 0
     var indexInBuffer: Int = 0
-    val nodeToExpand = buffer.dropWhile { node =>
+    val nodeAtIndex = buffer.dropWhile { node =>
       val nodeLen = node.untrimmedText.length
       if (index <= accum + nodeLen) {
         false
@@ -37,12 +39,16 @@ case class ElaborationState(buffer: mutable.ArrayBuffer[TextModel]) {
       }
     }.head
 
-    (nodeToExpand, indexInBuffer, index - accum)
+    (nodeAtIndex, indexInBuffer, index - accum)
   }
 
   def expand(index: Int): Unit = {
     val (nodeToExpand, indexInBuffer, _) = getNodeAtCharIndex(index)
 
+    expand(nodeToExpand, indexInBuffer)
+  }
+
+  def expand(nodeToExpand: TextModel, indexInBuffer: Int): Unit = {
     if (nodeToExpand.children.isEmpty) {
       throw new IllegalArgumentException(s"Cannot expand un-elaborated node: ${nodeToExpand.text}")
     }
@@ -75,7 +81,7 @@ case class ElaborationState(buffer: mutable.ArrayBuffer[TextModel]) {
     (nodeStartIndex, nodeSelected.untrimmedText.length)
   }
 
-  def selectParent(index: Int): String = {
+  def getParentStr(index: Int): String = {
     getNodeAtCharIndex(index) match {
       case (TextRoot(_), _, _) => ""
       case (TextNode(_, parent, _, _, _), _, _) => parent.text
@@ -176,14 +182,38 @@ case class ElaborationState(buffer: mutable.ArrayBuffer[TextModel]) {
     }
   }
 
+  def elaborate(start: Int, end: Int): Boolean = {
+    val (nodeSelected, indexInBuffer, depthInNode) = getNodeAtCharIndex(start)
+    nodeSelected match {
+      case _: TextRoot => false
+      case node: TextNode =>
+        val selectionLength = end - start
+        if (selectionLength <= nodeSelected.untrimmedText.length - depthInNode) {
+          val (beforeNode, newNode, afterNode) = node.elaborate("Elaborate Here (replace this)", depthInNode, depthInNode + selectionLength)
+          buffer.remove(indexInBuffer)
+          buffer.insertAll(indexInBuffer, Vector(beforeNode, newNode, afterNode))
+          expand(newNode, indexInBuffer + 1)
+          true
+        } else false
+    }
+  }
+
   def getRoot: TextRoot = {
     buffer.head.getRoot
+  }
+
+  def save(file: File): Unit = {
+    getRoot.save(file)
   }
 
   def reset(root: TextRoot): Unit = {
     buffer.clearAndShrink()
     buffer.addOne(root)
     computeCurrentText()
+  }
+
+  def resetAndOpen(file: File): Unit = {
+    reset(TextRoot.fromFile(file))
   }
 }
 

@@ -6,7 +6,7 @@ import scalafx.geometry.Insets
 import scalafx.scene.Scene
 import scalafx.scene.control.{Alert, Label, Menu, MenuBar, MenuItem, TextArea}
 import scalafx.scene.control.Alert.AlertType
-import scalafx.scene.input.MouseEvent
+import scalafx.scene.input.{KeyCode, MouseEvent}
 import scalafx.scene.layout.BorderPane
 import scalafx.stage.{FileChooser, Window}
 
@@ -58,7 +58,7 @@ object TestText extends JFXApp {
         val fileOrNull = fileChooser.showOpenDialog(null.asInstanceOf[Window])
 
         if (fileOrNull != null) {
-          elaborationState.reset(TextRoot.fromFile(fileOrNull))
+          elaborationState.resetAndOpen(fileOrNull)
           statusText.value = s"Opened ${fileOrNull.getCanonicalPath}"
         }
       }
@@ -74,7 +74,7 @@ object TestText extends JFXApp {
         val fileOrNull = fileChooser.showSaveDialog(null.asInstanceOf[Window])
 
         if (fileOrNull != null) {
-          elaborationState.getRoot.save(fileOrNull)
+          elaborationState.save(fileOrNull)
           statusText.value = "File saved!"
         }
       }
@@ -108,12 +108,32 @@ object TestText extends JFXApp {
       skin().asInstanceOf[TextAreaSkin].getIndex(clickX, clickY).getCharIndex
     }
 
+    def toggleEditing(index: Int): Unit = {
+      val textFunc = { () => text() }
+      val selectFunc = { (start: Int, end: Int) =>
+        this.positionCaret(start)
+        this.extendSelection(end)
+      }
+
+      if (elaborationState.toggleEditingForNode(index, textFunc, selectFunc)) {
+        if (!editable()) {
+          text.unbind()
+          statusText.value = "Edit Mode"
+          editable = true
+        } else {
+          text <== elaborationState.text
+          statusText.value = ""
+          editable = false
+        }
+      }
+    }
+
     onMouseMoved = { event =>
       if (!editable()) {
         val index = getCharIndex(event)
 
         if (index != text().length) {
-          val parent = elaborationState.selectParent(index)
+          val parent = elaborationState.getParentStr(index)
 
           if (!parent.isEmpty) {
             statusText.value = parent
@@ -131,22 +151,7 @@ object TestText extends JFXApp {
         } else if (event.altDown && !currentlyEditable) {
           elaborationState.expand(index)
         } else {
-          val textFunc = { () => text() }
-          val selectFunc = { (start: Int, end: Int) =>
-            this.positionCaret(start)
-            this.extendSelection(end)
-          }
-          if(elaborationState.toggleEditingForNode(index, textFunc, selectFunc)) {
-            if (!currentlyEditable) {
-              text.unbind()
-              statusText.value = "Edit Mode"
-            } else {
-              statusText.value = ""
-              text <== elaborationState.text
-            }
-
-            editable = !editable()
-          }
+          toggleEditing(index)
         }
       } else if (!currentlyEditable) {
         val (nodeStart, nodeLength) =
@@ -161,6 +166,18 @@ object TestText extends JFXApp {
         if (nodeLength > 0) {
           this.positionCaret(nodeStart)
           this.extendSelection(nodeStart + nodeLength)
+        }
+      }
+    }
+
+    onKeyPressed = { event =>
+      val currentlyEditable = editable()
+      if (event.code == KeyCode.Tab && event.shiftDown && !currentlyEditable) {
+        val selection = textArea.selection()
+        if (selection.getLength > 0) {
+          if (elaborationState.elaborate(selection.start, selection.end)) {
+            toggleEditing(selection.end - selection.length / 2)
+          }
         }
       }
     }

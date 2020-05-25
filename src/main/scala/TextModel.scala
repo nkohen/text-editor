@@ -155,7 +155,7 @@ case class TextNode(var text: String, parent: TextModel, beforeSpacing: String =
   }
 
   def elaborate(elaboration: String, from: Int, to: Int): (TextNode, TextNode, TextNode) = {
-    val (before, elaboratedWithAfter) = text.splitAt(from)
+    val (before, elaboratedWithAfter) = untrimmedText.splitAt(from)
     val (elaborated, after) = elaboratedWithAfter.splitAt(to - from)
 
     val newNode = TextNode.fromUntrimmed(elaborated, parent)
